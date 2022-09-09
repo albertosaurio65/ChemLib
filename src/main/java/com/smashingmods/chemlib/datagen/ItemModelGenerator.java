@@ -11,7 +11,6 @@ import com.smashingmods.chemlib.registry.FluidRegistry;
 import com.smashingmods.chemlib.registry.ItemRegistry;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BucketItem;
 import net.minecraftforge.client.model.generators.ItemModelProvider;
 import net.minecraftforge.common.data.ExistingFileHelper;
@@ -30,18 +29,19 @@ public class ItemModelGenerator extends ItemModelProvider {
     protected void registerModels() {
         generateElementModels();
         generateCompoundModels();
+        generateChemicalItemModels();
 
-        ItemRegistry.getElements().stream().forEach(this::registerElement);
-        ItemRegistry.getCompounds().stream().forEach(this::registerCompound);
+        ItemRegistry.getElements().forEach(this::registerElement);
+        ItemRegistry.getCompounds().forEach(this::registerCompound);
 
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.COMPOUND).forEach(this::registerCompoundDust);
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.DUST).forEach(dust -> registerItem(dust.getChemicalName(), "dust"));
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.NUGGET).forEach(nugget -> registerItem(nugget.getChemicalName(), "nugget"));
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.INGOT).forEach(ingot -> registerItem(ingot.getChemicalName(), "ingot"));
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.PLATE).forEach(plate -> registerItem(plate.getChemicalName(), "plate"));
+
         FluidRegistry.getBuckets().forEach(this::registerBucket);
-        ItemRegistry.getChemicalBlockItems().stream().forEach(this::registerChemicalBlockItems);
-        ItemRegistry.getLiquidBlockItems().stream().forEach(this::registerLiquidBlockItems);
+        ItemRegistry.getChemicalBlockItems().forEach(this::registerChemicalBlockItems);
     }
 
     private void generateElementModels() {
@@ -60,6 +60,14 @@ public class ItemModelGenerator extends ItemModelProvider {
         }
     }
 
+    private void generateChemicalItemModels() {
+        Arrays.stream(ChemicalItemType.values())
+                .map(ChemicalItemType::getSerializedName)
+                .forEach(type ->
+                        withExistingParent(String.format("item/chemical_%s_model", type), mcLoc("item/generated"))
+                                .texture("layer0", modLoc(String.format("items/%s", type))));
+    }
+
     private void registerElement(Element pElement) {
         withExistingParent(String.format("item/%s", pElement.getChemicalName()), modLoc("item/builtin_entity"));
     }
@@ -76,9 +84,8 @@ public class ItemModelGenerator extends ItemModelProvider {
         withExistingParent(String.format("item/%s_dust", pItem.getChemicalName()), modLoc("item/compound_dust_model"));
     }
 
-    private void registerItem(String pName, String pSuffix) {
-        withExistingParent(String.format("item/%s_%s", pName, pSuffix), mcLoc("item/generated"))
-                .texture("layer0", modLoc(String.format("items/%s", pSuffix)));
+    private void registerItem(String pName, String pType) {
+        withExistingParent(String.format("item/%s_%s", pName, pType), modLoc("item/builtin_entity"));
     }
 
     private void registerChemicalBlockItems(ChemicalBlockItem pBlockItem) {
@@ -90,14 +97,8 @@ public class ItemModelGenerator extends ItemModelProvider {
         withExistingParent(name, parent).texture("layer0", texture);
     }
 
-    private void registerLiquidBlockItems(BlockItem pBlockItem) {
-        String name = pBlockItem.getRegistryName().getPath().replace("_liquid_block", "");
-        withExistingParent(String.format("item/%s_liquid_block", name), mcLoc("item/generated"))
-                .texture("layer0", mcLoc("block/water_still"));
-    }
-
     private void registerBucket(BucketItem pBucket) {
-        String path = pBucket.getRegistryName().getPath();
+        String path = Objects.requireNonNull(pBucket.getRegistryName()).getPath();
         int pieces = path.split("_").length;
         String chemicalName = "";
 
@@ -115,7 +116,7 @@ public class ItemModelGenerator extends ItemModelProvider {
             chemical = optionalCompound.get();
         }
 
-        MatterState matterState = chemical.getMatterState();
+        MatterState matterState = Objects.requireNonNull(chemical).getMatterState();
 
         switch (matterState) {
             case LIQUID -> withExistingParent(String.format("item/%s", Objects.requireNonNull(pBucket.getRegistryName()).getPath()), mcLoc("item/generated"))

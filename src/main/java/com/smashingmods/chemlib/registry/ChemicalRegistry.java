@@ -50,16 +50,17 @@ public class ChemicalRegistry {
                 switch (matterState) {
                     case SOLID -> {
                         boolean hasItem = object.has("has_item") && object.get("has_item").getAsBoolean();
-                        if (!hasItem) {
-                            if (metalType == MetalType.METAL) {
+
+                        if (metalType == MetalType.METAL) {
+                            ItemRegistry.registerItemByType(registryObject, ChemicalItemType.PLATE, ItemRegistry.METALS_TAB);
+                            if (!hasItem) {
                                 ItemRegistry.registerItemByType(registryObject, ChemicalItemType.NUGGET, ItemRegistry.METALS_TAB);
                                 ItemRegistry.registerItemByType(registryObject, ChemicalItemType.INGOT, ItemRegistry.METALS_TAB);
-                                ItemRegistry.registerItemByType(registryObject, ChemicalItemType.PLATE, ItemRegistry.METALS_TAB);
                                 BlockRegistry.BLOCKS.register(String.format("%s_metal_block", elementName), () -> new ChemicalBlock(new ResourceLocation(ChemLib.MODID, elementName), ChemicalBlockType.METAL, BlockRegistry.METAL_BLOCKS, BlockRegistry.METAL_PROPERTIES));
-                                ItemRegistry.fromChemicalBlock(BlockRegistry.getRegistryObjectByName(String.format("%s_metal_block", elementName)).get(), new Item.Properties().tab(ItemRegistry.METALS_TAB));
+                                BlockRegistry.getRegistryObjectByName(String.format("%s_metal_block", elementName)).ifPresent(block -> ItemRegistry.fromChemicalBlock(block, new Item.Properties().tab(ItemRegistry.METALS_TAB)));
                             }
-                            ItemRegistry.registerItemByType(registryObject, ChemicalItemType.DUST, ItemRegistry.METALS_TAB);
                         }
+                        ItemRegistry.registerItemByType(registryObject, ChemicalItemType.DUST, ItemRegistry.METALS_TAB);
                     }
                     case LIQUID, GAS -> {
                         boolean hasFluid = object.has("has_fluid") && object.get("has_fluid").getAsBoolean();
@@ -80,13 +81,10 @@ public class ChemicalRegistry {
                                     .color((int) Long.parseLong(color, 16));
 
                             switch (matterState) {
-                                case LIQUID -> {
-                                    FluidRegistry.registerFluid(elementName, attributes, slopeFindDistance, decreasePerBlock);
-                                }
-                                case GAS -> {
+                                case LIQUID, GAS -> {
                                     if (group == 18) {
                                         BlockRegistry.BLOCKS.register(String.format("%s_lamp_block", elementName), () -> new LampBlock(new ResourceLocation(ChemLib.MODID, elementName), ChemicalBlockType.LAMP, BlockRegistry.LAMP_BLOCKS, BlockRegistry.LAMP_PROPERTIES));
-                                        ItemRegistry.fromChemicalBlock(BlockRegistry.getRegistryObjectByName(String.format("%s_lamp_block", elementName)).get(), new Item.Properties().tab(ItemRegistry.MISC_TAB));
+                                        BlockRegistry.getRegistryObjectByName(String.format("%s_lamp_block", elementName)).ifPresent(block -> ItemRegistry.fromChemicalBlock(block, new Item.Properties().tab(ItemRegistry.MISC_TAB)));
                                     }
                                     attributes.gaseous();
                                     FluidRegistry.registerFluid(elementName, attributes, slopeFindDistance, decreasePerBlock);

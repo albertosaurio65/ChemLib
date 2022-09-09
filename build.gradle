@@ -69,7 +69,7 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
-    maven { url  "https://dvs1.progwml6.com/files/maven/" }
+    maven { url "https://dvs1.progwml6.com/files/maven/" }
     maven {
         url "https://www.cursemaven.com"
         content {
@@ -82,6 +82,7 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     implementation fg.deobf("mezz.jei:jei-${jei_version}:api")
     runtimeOnly fg.deobf("mezz.jei:jei-${jei_version}")
+    runtimeOnly fg.deobf("curse.maven:mekanism-268560:3743835")
 }
 
 jar {
@@ -95,16 +96,6 @@ jar {
                 "Implementation-Vendor"   : "SmashingMods",
                 "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
-    }
-}
-
-jar.finalizedBy('reobfJar')
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact jar
-        }
     }
 }
 
@@ -122,6 +113,29 @@ fileTree("secrets").matching {
         }
 }
 
+jar.finalizedBy('reobfJar')
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            afterEvaluate {
+                artifact project.jar
+            }
+            setGroupId 'smashingmods'
+            setArtifactId 'chemlib'
+        }
+    }
+    repositories {
+        maven {
+            url "https://maven.tamaized.com/releases"
+            credentials {
+                username secrets.getProperty("maven_username")
+                password secrets.getProperty("maven_password")
+            }
+        }
+    }
+}
+
 curseforge {
     apiKey = secrets.getProperty("apiKey")
     project {
@@ -130,10 +144,13 @@ curseforge {
         changelogType = 'markdown'
         changelog = file("changelog.md")
         addGameVersion 'Forge'
-        addGameVersion 'Java 18'
+        addGameVersion 'Java 17'
         addGameVersion '1.18.2'
         mainArtifact(jar) {
             displayName = "ChemLib $project.version"
+            relations {
+                optionalDependency 'jei'
+            }
         }
     }
 }

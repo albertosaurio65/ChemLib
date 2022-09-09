@@ -10,12 +10,10 @@ import com.smashingmods.chemlib.registry.BlockRegistry;
 import com.smashingmods.chemlib.registry.ItemRegistry;
 import net.minecraft.advancements.critereon.ItemPredicate;
 import net.minecraft.data.DataGenerator;
-import net.minecraft.data.recipes.FinishedRecipe;
-import net.minecraft.data.recipes.RecipeProvider;
-import net.minecraft.data.recipes.ShapedRecipeBuilder;
-import net.minecraft.data.recipes.ShapelessRecipeBuilder;
+import net.minecraft.data.recipes.*;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraftforge.common.Tags;
 
 import javax.annotation.Nonnull;
@@ -45,47 +43,83 @@ public class RecipeGenerator extends RecipeProvider {
         // register ingot -> block recipes
         BlockRegistry.getChemicalBlocksByType(ChemicalBlockType.METAL).forEach(block -> {
             Chemical chemical = block.getChemical();
-            ChemicalItem ingot = ItemRegistry.getChemicalItemByNameAndType(chemical.getChemicalName(), ChemicalItemType.INGOT).get();
-            ShapedRecipeBuilder.shaped(block)
+            ItemRegistry.getChemicalItemByNameAndType(chemical.getChemicalName(), ChemicalItemType.INGOT).ifPresent(ingot -> ShapedRecipeBuilder.shaped(block)
                     .define('I', ingot)
                     .pattern("III")
                     .pattern("III")
                     .pattern("III")
                     .unlockedBy(String.format("has_%s", chemical), inventoryTrigger(ItemPredicate.Builder.item().of(chemical).build()))
-                    .save(pFinishedRecipeConsumer, String.format("%s:%s_ingot_to_block", ChemLib.MODID, chemical.getChemicalName()));
+                    .save(pFinishedRecipeConsumer, String.format("%s:%s_ingot_to_block", ChemLib.MODID, chemical.getChemicalName())));
         });
 
         // register nugget -> ingot
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.INGOT).forEach(ingot -> {
             Chemical chemical = ingot.getChemical();
-            ChemicalItem nugget = ItemRegistry.getChemicalItemByNameAndType(chemical.getChemicalName(), ChemicalItemType.NUGGET).get();
-            ShapedRecipeBuilder.shaped(ingot)
+            ItemRegistry.getChemicalItemByNameAndType(chemical.getChemicalName(), ChemicalItemType.NUGGET).ifPresent(nugget -> ShapedRecipeBuilder.shaped(ingot)
                     .define('N', nugget)
                     .pattern("NNN")
                     .pattern("NNN")
                     .pattern("NNN")
                     .unlockedBy(String.format("has_%s", chemical), inventoryTrigger(ItemPredicate.Builder.item().of(chemical).build()))
-                    .save(pFinishedRecipeConsumer, String.format("%s:%s_nugget_to_ingot", ChemLib.MODID, chemical.getChemicalName()));
+                    .save(pFinishedRecipeConsumer, String.format("%s:%s_nugget_to_ingot", ChemLib.MODID, chemical.getChemicalName())));
         });
 
         // register block -> ingot recipes
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.INGOT).forEach(ingot -> {
             Chemical chemical = ingot.getChemical();
-            ChemicalBlock block = BlockRegistry.getChemicalBlockByNameAndType(chemical.getChemicalName(), ChemicalBlockType.METAL).get();
-            ShapelessRecipeBuilder.shapeless(ingot, 9)
+            BlockRegistry.getChemicalBlockByNameAndType(chemical.getChemicalName(), ChemicalBlockType.METAL).ifPresent(block -> ShapelessRecipeBuilder.shapeless(ingot, 9)
                     .requires(block)
                     .unlockedBy(String.format("has_%s", chemical), inventoryTrigger(ItemPredicate.Builder.item().of(chemical).build()))
-                    .save(pFinishedRecipeConsumer, String.format("%s:%s_block_to_ingot", ChemLib.MODID, chemical.getChemicalName()));
+                    .save(pFinishedRecipeConsumer, String.format("%s:%s_block_to_ingot", ChemLib.MODID, chemical.getChemicalName())));
         });
 
         // register ingot -> nugget
         ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.INGOT).forEach(ingot -> {
             Chemical chemical = ingot.getChemical();
-            ChemicalItem nugget = ItemRegistry.getChemicalItemByNameAndType(chemical.getChemicalName(), ChemicalItemType.NUGGET).get();
-            ShapelessRecipeBuilder.shapeless(nugget, 9)
+            ItemRegistry.getChemicalItemByNameAndType(chemical.getChemicalName(), ChemicalItemType.NUGGET).ifPresent(nugget -> ShapelessRecipeBuilder.shapeless(nugget, 9)
                     .requires(ingot)
                     .unlockedBy(String.format("has_%s", chemical), inventoryTrigger(ItemPredicate.Builder.item().of(chemical).build()))
-                    .save(pFinishedRecipeConsumer, String.format("%s:%s_ingot_to_nugget", ChemLib.MODID, chemical.getChemicalName()));
+                    .save(pFinishedRecipeConsumer, String.format("%s:%s_ingot_to_nugget", ChemLib.MODID, chemical.getChemicalName())));
+        });
+
+        // register dust -> ingot
+        ItemRegistry.getChemicalItemsByTypeAsStream(ChemicalItemType.DUST)
+                .forEach(dust -> ItemRegistry.getElementByName(dust.getChemicalName())
+                .flatMap(elementItem -> ItemRegistry.getChemicalItemByNameAndType(elementItem.getChemicalName(), ChemicalItemType.INGOT))
+                .ifPresent(chemicalItem -> {
+                    String chemicalName = chemicalItem.getChemicalName();
+                    SimpleCookingRecipeBuilder.smelting(Ingredient.of(dust), chemicalItem, 0.7f, 200)
+                            .unlockedBy(String.format("has_%s", chemicalItem.getChemical()), inventoryTrigger(ItemPredicate.Builder.item().of(chemicalItem.getChemical()).build()))
+                            .save(pFinishedRecipeConsumer, String.format("%s:%s_ingot_from_smelting_%s_dust", ChemLib.MODID, chemicalName, chemicalName));
+                    SimpleCookingRecipeBuilder.blasting(Ingredient.of(dust), chemicalItem, 0.7f, 100)
+                            .unlockedBy(String.format("has_%s", chemicalItem.getChemical()), inventoryTrigger(ItemPredicate.Builder.item().of(chemicalItem.getChemical()).build()))
+                            .save(pFinishedRecipeConsumer, String.format("%s:%s_ingot_from_blasting_%s_dust", ChemLib.MODID, chemicalName, chemicalName));
+                }));
+
+        // hard-code vanilla dust to ingot smelting/blasting recipes
+        ItemRegistry.getChemicalItemByNameAndType("copper", ChemicalItemType.DUST).ifPresent(dust -> {
+            SimpleCookingRecipeBuilder.smelting(Ingredient.of(dust), Items.COPPER_INGOT, 0.7f, 200)
+                    .unlockedBy("has_copper", inventoryTrigger(ItemPredicate.Builder.item().of(dust).build()))
+                    .save(pFinishedRecipeConsumer, "alchemistry:copper_ingot_from_smelting_copper_dust");
+            SimpleCookingRecipeBuilder.blasting(Ingredient.of(dust), Items.COPPER_INGOT, 0.7f, 100)
+                    .unlockedBy("has_copper", inventoryTrigger(ItemPredicate.Builder.item().of(dust).build()))
+                    .save(pFinishedRecipeConsumer, "alchemistry:copper_ingot_from_blasting_copper_dust");
+        });
+        ItemRegistry.getChemicalItemByNameAndType("iron", ChemicalItemType.DUST).ifPresent(dust -> {
+            SimpleCookingRecipeBuilder.smelting(Ingredient.of(dust), Items.IRON_INGOT, 0.7f, 200)
+                    .unlockedBy("has_iron", inventoryTrigger(ItemPredicate.Builder.item().of(dust).build()))
+                    .save(pFinishedRecipeConsumer, "alchemistry:iron_ingot_from_smelting_iron_dust");
+            SimpleCookingRecipeBuilder.blasting(Ingredient.of(dust), Items.IRON_INGOT, 0.7f, 100)
+                    .unlockedBy("has_iron", inventoryTrigger(ItemPredicate.Builder.item().of(dust).build()))
+                    .save(pFinishedRecipeConsumer, "alchemistry:iron_ingot_from_blasting_iron_dust");
+        });
+        ItemRegistry.getChemicalItemByNameAndType("gold", ChemicalItemType.DUST).ifPresent(dust -> {
+            SimpleCookingRecipeBuilder.smelting(Ingredient.of(dust), Items.GOLD_INGOT, 0.7f, 200)
+                    .unlockedBy("has_gold", inventoryTrigger(ItemPredicate.Builder.item().of(dust).build()))
+                    .save(pFinishedRecipeConsumer, "alchemistry:gold_ingot_from_smelting_gold_dust");
+            SimpleCookingRecipeBuilder.blasting(Ingredient.of(dust), Items.GOLD_INGOT, 0.7f, 100)
+                    .unlockedBy("has_gold", inventoryTrigger(ItemPredicate.Builder.item().of(dust).build()))
+                    .save(pFinishedRecipeConsumer, "alchemistry:gold_ingot_from_blasting_gold_dust");
         });
 
         // periodic table
